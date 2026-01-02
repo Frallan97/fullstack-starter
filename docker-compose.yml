@@ -1,0 +1,100 @@
+services:
+  # Auth Service Database
+  auth-db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: authuser
+      POSTGRES_PASSWORD: authpass
+      POSTGRES_DB: authdb
+    ports:
+      - "5433:5432"
+    volumes:
+      - auth_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U authuser -d authdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Auth Service Backend (reference existing auth-service)
+  auth-service:
+    build:
+      context: ../auth-service/backend
+    environment:
+      PORT: 8081
+      DATABASE_URL: postgresql://authuser:authpass@auth-db:5432/authdb?sslmode=disable
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET}
+      GOOGLE_REDIRECT_URL: http://localhost:8081/api/auth/google/callback
+      ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
+      ENVIRONMENT: development
+      DEBUG: "true"
+    ports:
+      - "8081:8081"
+    depends_on:
+      auth-db:
+        condition: service_healthy
+    volumes:
+      - ../auth-service/backend/keys:/app/keys:ro
+
+  # Application Database
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-appuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-apppass}
+      POSTGRES_DB: ${POSTGRES_DB:-appdb}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-appuser} -d ${POSTGRES_DB:-appdb}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Application Backend
+  backend:
+    build:
+      context: ./backend
+      target: development
+    environment:
+      DATABASE_URL: ${DATABASE_URL:-postgresql://appuser:apppass@db:5432/appdb?sslmode=disable}
+      PORT: ${PORT:-8080}
+      ENVIRONMENT: ${ENVIRONMENT:-development}
+      DEBUG: ${DEBUG:-true}
+      AUTH_SERVICE_URL: http://auth-service:8081
+      JWT_PUBLIC_KEY_URL: http://auth-service:8081/api/public-key
+      ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
+      CASBIN_MODEL_PATH: ./config/casbin_model.conf
+    ports:
+      - "8080:8080"
+    depends_on:
+      db:
+        condition: service_healthy
+      auth-service:
+        condition: service_started
+    volumes:
+      - ./backend:/app
+      - /app/tmp
+
+  # Application Frontend
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    environment:
+      VITE_API_URL: http://localhost:8080/api/v1
+      VITE_AUTH_SERVICE_URL: http://localhost:8081
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:
+  auth_postgres_data:

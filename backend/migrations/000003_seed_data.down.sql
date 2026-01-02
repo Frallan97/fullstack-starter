@@ -1,0 +1,2 @@
+-- Cleanup seed data
+-- DELETE FROM items WHERE id < 100;
