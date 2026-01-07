@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"strings"
 
-	customJWT "github.com/frallan97/nordic-options-hub/backend/pkg/jwt"
-	"github.com/frallan97/nordic-options-hub/backend/services"
+	customJWT "github.com/frallan97/fullstack-starter/backend/pkg/jwt"
+	"github.com/frallan97/fullstack-starter/backend/services"
 	"github.com/google/uuid"
 )
 

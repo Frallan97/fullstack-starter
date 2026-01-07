@@ -47,6 +47,50 @@ fullstack-starter/
 └── .env.example              # Environment variables template
 ```
 
+## ⚠️ Critical: Post-Copy Checklist
+
+After copying this template, you **MUST** fix these issues before starting:
+
+### 1. ✅ Update Database Credentials (FIXED in template)
+
+**Status**: Already fixed in template, but verify it matches your `.env`
+
+**File**: `backend/config/config.go` line 34
+
+The template now has correct defaults:
+```go
+DatabaseURL: getEnv("DATABASE_URL", "postgresql://appuser:apppass@localhost:5432/appdb?sslmode=disable"),
+```
+
+When you rename your project, update this to match your custom credentials.
+
+### 2. Generate Auth-Service RSA Keys
+
+```bash
+cd ../auth-service/backend
+mkdir -p keys
+openssl genrsa -out keys/private_key.pem 4096
+openssl rsa -in keys/private_key.pem -pubout -out keys/public_key.pem
+```
+
+### 3. Adjust Auth-Service Ports (if running multiple projects)
+
+Edit `../auth-service/docker-compose.yml`:
+- Change postgres port: `5433:5432` (to avoid conflict with app db)
+- Change backend port: `8081:8081` (standard for auth-service)
+
+### 4. Copy .env to Backend Directory
+
+```bash
+cp .env backend/.env
+```
+
+### 5. When Creating router.go
+
+Use `r.Use(middleware.CORS)` **NOT** `r.Use(middleware.CORS(cfg.AllowedOrigins))`
+
+---
+
 ## 🚀 Quick Start
 
 ### Prerequisites
@@ -190,25 +234,39 @@ This template is **partially complete**. The following files need to be created:
 
 3. **`backend/handlers/router.go`** - Route definitions
    ```go
-   // Public routes
-   api.HandleFunc("/health", healthCheck).Methods("GET")
+   func SetupRouter(cfg *config.Config, enforcer *casbin.Enforcer) http.Handler {
+       r := mux.NewRouter()
 
-   // Auth endpoints
-   authRouter := api.PathPrefix("/auth").Subrouter()
-   authRouter.Use(middleware.Auth(cfg.JWTPublicKey))
-   authRouter.HandleFunc("/me", controllers.GetCurrentUser).Methods("GET")
-   api.HandleFunc("/auth/refresh", controllers.RefreshToken).Methods("POST")
-   api.HandleFunc("/auth/logout", controllers.Logout).Methods("POST")
+       // Global middleware - IMPORTANT: CORS doesn't take parameters
+       r.Use(middleware.CORS)  // NOT middleware.CORS(cfg.AllowedOrigins)
+       r.Use(middleware.Logger)
+       r.Use(middleware.Recovery)
 
-   // Protected CRUD endpoints
-   protected := api.PathPrefix("").Subrouter()
-   protected.Use(middleware.Auth(cfg.JWTPublicKey))
-   protected.Use(middleware.Authorize(enforcer))
-   protected.HandleFunc("/items", controllers.GetItems).Methods("GET")
-   protected.HandleFunc("/items", controllers.CreateItem).Methods("POST")
-   protected.HandleFunc("/items/{id}", controllers.GetItemByID).Methods("GET")
-   protected.HandleFunc("/items/{id}", controllers.UpdateItem).Methods("PATCH")
-   protected.HandleFunc("/items/{id}", controllers.DeleteItem).Methods("DELETE")
+       api := r.PathPrefix("/api/v1").Subrouter()
+
+       // Public routes
+       api.HandleFunc("/health", healthCheck).Methods("GET")
+
+       // Auth endpoints (public except /me)
+       api.HandleFunc("/auth/refresh", controllers.RefreshToken).Methods("POST")
+       api.HandleFunc("/auth/logout", controllers.Logout).Methods("POST")
+
+       // Protected routes requiring authentication
+       protected := api.PathPrefix("").Subrouter()
+       protected.Use(middleware.Auth(cfg.JWTPublicKey))
+       protected.HandleFunc("/auth/me", controllers.GetCurrentUser).Methods("GET")
+
+       // Protected + Authorized routes
+       authorized := protected.PathPrefix("").Subrouter()
+       authorized.Use(middleware.Authorize(enforcer))
+       authorized.HandleFunc("/items", controllers.GetItems).Methods("GET")
+       authorized.HandleFunc("/items", controllers.CreateItem).Methods("POST")
+       authorized.HandleFunc("/items/{id:[0-9]+}", controllers.GetItemByID).Methods("GET")
+       authorized.HandleFunc("/items/{id:[0-9]+}", controllers.UpdateItem).Methods("PATCH")
+       authorized.HandleFunc("/items/{id:[0-9]+}", controllers.DeleteItem).Methods("DELETE")
+
+       return r
+   }
    ```
 
    **Pattern**: Simplify nordic-options-hub `/backend/handlers/router.go`
@@ -456,6 +514,86 @@ bun test
 
 ## 🐛 Troubleshooting
 
+### Critical: Fix Config Defaults Before Starting
+
+**Problem**: `backend/config/config.go` has hardcoded defaults from a previous project that MUST be updated:
+
+```go
+// WRONG - Line 34:
+DatabaseURL: getEnv("DATABASE_URL", "postgresql://optionsuser:optionspass@localhost:5432/options_hub?sslmode=disable"),
+
+// CORRECT - Update to:
+DatabaseURL: getEnv("DATABASE_URL", "postgresql://appuser:apppass@localhost:5432/appdb?sslmode=disable"),
+```
+
+**Fix**: After copying this template, immediately update the default database URL in `backend/config/config.go` line 34 to match your project's database credentials.
+
+### Critical: Fix CORS Middleware Usage
+
+**Problem**: The router example in this README shows incorrect CORS usage:
+```go
+// WRONG:
+r.Use(middleware.CORS(cfg.AllowedOrigins))
+```
+
+The `middleware.CORS` function doesn't accept parameters - it reads from hardcoded `Access-Control-Allow-Origin: *`.
+
+**Correct Usage**:
+```go
+// CORRECT:
+r.Use(middleware.CORS)
+```
+
+**Fix**: When creating `backend/handlers/router.go`, use `middleware.CORS` without parameters.
+
+### Auth-Service Setup Issues
+
+**Problem 1: Missing RSA Keys**
+
+Auth-service will fail with "RSA keys not found" error on startup.
+
+**Solution**:
+```bash
+cd ../auth-service/backend
+mkdir -p keys
+openssl genrsa -out keys/private_key.pem 4096
+openssl rsa -in keys/private_key.pem -pubout -out keys/public_key.pem
+```
+
+**Problem 2: Port Conflicts**
+
+When running multiple projects that use auth-service, ports will conflict (both PostgreSQL on 5432 and backend on 8080/8081).
+
+**Solution**: Update auth-service `docker-compose.yml`:
+```yaml
+# Change postgres port
+ports:
+  - "5433:5432"  # Changed from 5432:5432
+
+# Change backend port (if auth-service is standalone)
+backend:
+  ports:
+    - "8081:8081"  # Changed from 8080:8080
+  environment:
+    PORT: 8081
+    GOOGLE_REDIRECT_URL: http://localhost:8081/api/auth/google/callback
+```
+
+### Backend .env File Location
+
+**Problem**: Backend looks for `.env` in the `backend/` directory, not the project root.
+
+**Solution**: Copy .env to backend directory:
+```bash
+cp .env backend/.env
+```
+
+Or run backend from project root:
+```bash
+cd /path/to/project
+./backend/your-app
+```
+
 ### "auth-service not found"
 Ensure auth-service exists at `../auth-service/` relative to this project
 
@@ -469,6 +607,32 @@ Check CORS configuration in `backend/config/config.go`
 - Verify GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET in .env
 - Check redirect URL matches Google Cloud Console config
 - Ensure auth-service is running
+
+### Database authentication failed
+1. Check that database credentials in `.env` match `docker-compose.yml`
+2. Verify hardcoded defaults in `backend/config/config.go` are updated
+3. Ensure database container is running: `docker ps`
+
+### "Cannot use middleware.CORS(...) as mux.MiddlewareFunc"
+Remove parameters from CORS middleware call - should be just `r.Use(middleware.CORS)`
+
+---
+
+## ✅ Template Improvements (January 2026)
+
+The following bugs found during lifegoal-tracker implementation have been **FIXED** in this template:
+
+1. **✅ Database credentials in config.go**: Changed from `optionsuser/options_hub` to `appuser/appdb`
+2. **✅ Import paths in auth.go**: Changed from `nordic-options-hub` to `fullstack-starter`
+3. **✅ Import paths in user_service.go**: Changed from `nordic-options-hub` to `fullstack-starter`
+4. **✅ Router example in README**: Corrected to use `middleware.CORS` without parameters
+5. **✅ Comprehensive troubleshooting guide**: Added common issues and solutions
+
+**Remaining Manual Steps** (these require environment-specific configuration):
+- Generate RSA keys for auth-service
+- Configure auth-service ports if running multiple projects
+- Copy `.env` to `backend/.env` directory
+- Update credentials when renaming project
 
 ## 📖 Further Reading
 

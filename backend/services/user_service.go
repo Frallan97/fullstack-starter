@@ -5,8 +5,8 @@ import (
 	"database/sql"
 	"fmt"
 
-	"github.com/frallan97/nordic-options-hub/backend/database"
-	"github.com/frallan97/nordic-options-hub/backend/models"
+	"github.com/frallan97/fullstack-starter/backend/database"
+	"github.com/frallan97/fullstack-starter/backend/models"
 	"github.com/google/uuid"
 )
 

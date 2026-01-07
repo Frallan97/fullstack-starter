@@ -31,7 +31,7 @@ func Load() *Config {
 	debug := os.Getenv("DEBUG") == "true"
 
 	config := &Config{
-		DatabaseURL:     getEnv("DATABASE_URL", "postgresql://optionsuser:optionspass@localhost:5432/options_hub?sslmode=disable"),
+		DatabaseURL:     getEnv("DATABASE_URL", "postgresql://appuser:apppass@localhost:5432/appdb?sslmode=disable"),
 		Port:            getEnv("PORT", "8080"),
 		Environment:     getEnv("ENVIRONMENT", "development"),
 		Debug:           debug,
