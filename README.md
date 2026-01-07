@@ -85,9 +85,78 @@ Edit `../auth-service/docker-compose.yml`:
 cp .env backend/.env
 ```
 
-### 5. When Creating router.go
+### 5. ✅ Docker Compose Fixes (FIXED in template - January 2026)
 
-Use `r.Use(middleware.CORS)` **NOT** `r.Use(middleware.CORS(cfg.AllowedOrigins))`
+**Status**: All Docker Compose issues have been fixed. Verify these are correct:
+
+#### a) Frontend `Dockerfile.dev` - Bun Lock File
+**File**: `frontend/Dockerfile.dev` line 6
+```dockerfile
+COPY package.json bun.lock ./  # ✅ Correct (was bun.lockb)
+```
+
+#### b) Frontend TypeScript Configs
+**Files**: `frontend/tsconfig.app.json` and `frontend/tsconfig.node.json`
+- ✅ Both files now exist in the template
+- Referenced by `frontend/tsconfig.json`
+
+#### c) Frontend CSS @import Ordering
+**File**: `frontend/src/index.css` lines 1-6
+```css
+/* ✅ @import must come BEFORE @tailwind directives */
+@import url('https://fonts.googleapis.com/...');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+```
+
+#### d) OAuth Callback Route
+**File**: `frontend/src/pages/OAuthCallback.tsx`
+- ✅ Now exists in template
+- Handles OAuth redirect from auth-service
+- Sends token to parent window via `postMessage`
+
+**IMPORTANT**: Add this route to your App.tsx/router when creating it:
+```tsx
+<Route path="/auth/callback" element={<OAuthCallback />} />
+```
+
+#### e) AuthContext Redirect URI
+**File**: `frontend/src/context/AuthContext.tsx` lines 75-77
+```typescript
+// ✅ Now includes redirect_uri parameter
+const redirectUri = window.location.origin;
+const authUrl = `${AUTH_SERVICE_URL}/api/auth/google/login?redirect_uri=${encodeURIComponent(redirectUri)}`;
+```
+
+#### f) Backend CORS OPTIONS Support
+**File**: `backend/handlers/router.go`
+- ✅ All routes now include `"OPTIONS"` method for CORS preflight
+```go
+api.HandleFunc("/health", ...).Methods("GET", "OPTIONS")
+protected.HandleFunc("/auth/me", ...).Methods("GET", "OPTIONS")
+```
+
+#### g) Docker Compose Environment Variables
+**File**: `docker-compose.yml`
+- ✅ Auth-service includes `MIGRATIONS_PATH: file:///app/migrations`
+- ✅ DATABASE_URL uses `db:5432` (service name, not localhost)
+
+**File**: `.env.example` line 7
+```env
+# ✅ Uses 'db' service name for Docker networking
+DATABASE_URL=postgresql://appuser:apppass@db:5432/appdb?sslmode=disable
+```
+
+### 6. When Creating router.go
+
+⚠️ **This file now exists at `backend/handlers/router.go`**
+
+If you need to modify it:
+- CORS middleware must be first: `r.Use(middleware.CORS)`
+- Use `r.Use(middleware.CORS)` **NOT** `r.Use(middleware.CORS(cfg.AllowedOrigins))`
+- Always include `"OPTIONS"` in `.Methods()` for all routes
 
 ---
 

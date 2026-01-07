@@ -29,6 +29,7 @@ services:
       ALLOWED_ORIGINS: http://localhost:5173,http://localhost:3000
       ENVIRONMENT: development
       DEBUG: "true"
+      MIGRATIONS_PATH: file:///app/migrations
     ports:
       - "8081:8081"
     depends_on:

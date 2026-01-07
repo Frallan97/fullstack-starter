@@ -72,8 +72,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const left = window.screenX + (window.outerWidth - width) / 2;
     const top = window.screenY + (window.outerHeight - height) / 2;
 
+    // Pass redirect_uri so auth-service knows where to send the user after OAuth
+    const redirectUri = window.location.origin;
+    const authUrl = `${AUTH_SERVICE_URL}/api/auth/google/login?redirect_uri=${encodeURIComponent(redirectUri)}`;
+
     const popup = window.open(
-      `${AUTH_SERVICE_URL}/api/auth/google/login`,
+      authUrl,
       'OAuth Login',
       `width=${width},height=${height},left=${left},top=${top},toolbar=0,menubar=0`
     );
