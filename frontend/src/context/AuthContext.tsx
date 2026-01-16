@@ -20,7 +20,7 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 const AUTH_SERVICE_URL = import.meta.env.VITE_AUTH_SERVICE_URL || 'http://localhost:8081';
-const STORAGE_KEY = 'nordic_options_access_token';
+const STORAGE_KEY = 'app_access_token';
 
 // Helper to decode JWT and extract expiry
 function getTokenExpiry(token: string): number | null {

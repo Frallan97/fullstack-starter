@@ -1,6 +1,8 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/context/AuthContext';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 export default function Login() {
   const { login, isAuthenticated } = useAuth();
@@ -8,30 +10,32 @@ export default function Login() {
 
   useEffect(() => {
     if (isAuthenticated) {
-      navigate('/');
+      navigate('/dashboard');
     }
   }, [isAuthenticated, navigate]);
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
-      <div className="w-full max-w-md p-8 bg-white rounded-lg shadow-xl">
-        <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Nordic Options Hub</h1>
-          <p className="text-lg text-gray-600">
-            Professional options trading platform
-          </p>
-        </div>
-
-        <div className="space-y-4">
-          <p className="text-center text-gray-600">
-            Sign in to access your trading dashboard, manage positions, and track your options portfolio.
-          </p>
-
-          <button
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-background via-background to-muted/20 p-4">
+      <Card className="w-full max-w-md">
+        <CardHeader className="space-y-1 text-center">
+          <div className="flex justify-center mb-4">
+            <div className="h-16 w-16 rounded-lg bg-primary flex items-center justify-center">
+              <span className="text-primary-foreground font-bold text-3xl">A</span>
+            </div>
+          </div>
+          <CardTitle className="text-3xl font-bold">Welcome Back</CardTitle>
+          <CardDescription className="text-base">
+            Sign in to access your account and continue your journey
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <Button
             onClick={login}
-            className="w-full flex items-center justify-center gap-3 px-6 py-3 bg-white border-2 border-gray-300 rounded-lg hover:bg-gray-50 hover:border-gray-400 transition-all duration-200 font-medium text-gray-700"
+            variant="outline"
+            size="lg"
+            className="w-full h-12"
           >
-            <svg className="w-6 h-6" viewBox="0 0 24 24">
+            <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
               <path
                 fill="#4285F4"
                 d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -49,14 +53,26 @@ export default function Login() {
                 d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
               />
             </svg>
-            <span>Sign in with Google</span>
-          </button>
+            Continue with Google
+          </Button>
 
-          <p className="text-xs text-center text-gray-500 mt-4">
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">
+                Secure authentication
+              </span>
+            </div>
+          </div>
+
+          <p className="text-xs text-center text-muted-foreground px-4">
             By signing in, you agree to our Terms of Service and Privacy Policy.
+            Your data is protected with industry-standard security.
           </p>
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
